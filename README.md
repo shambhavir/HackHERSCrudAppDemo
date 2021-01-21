@@ -267,6 +267,165 @@ Navigate to index.ejs. We will be making some functionalities for updating our e
     </section>
 ```
 
-  
- 
+Now let's go into our public folder and edit main.js
+Let's add in all the functionalities for our new update, delete, etc functions we will need. 
+```
+const update = document.querySelector('#update-button')
+const deleteButton = document.querySelector('#delete-button')
+const messageDiv = document.querySelector('#message')
+```
+Now go into server.js: we need to add in more app.use function. 
+```
+app.use(express.static('public'))
+```
+Now, to wire it all up, let's add main.js to index.ejs like so:
+```
+<body>
+  <!-- ... -->
+  <script src="/main.js"></script>
+</body>
+```
+We're not done with our update portion yet. How is our update going to work exactly? Let's go over that.
+Add this to main.js
+```
+update.addEventListener('click', _ => {
+  // Send PUT Request here
+})
+```
 
+We need a PUT request to our browser, which is done through a Fetch. 
+```
+update.addEventListener('click', _ => {
+  fetch('/todos', {
+    method: 'put'
+  })
+})
+```
+As maybe you can tell from the set up of our inputs in our database so far, we are sending in JSON data. What does this mean?
+We need to tell the servers this!
+
+```
+update.addEventListener('click', _ => {
+  fetch('/todos', {
+    method: 'put',
+    headers: { 'Content-Type': 'application/json' },
+  })
+})
+```
+  
+ Now we need to stringify our JSON to display it.
+ ```
+ update.addEventListener('click', _ => {
+  fetch('/quotes', {
+    method: 'put',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      name: 'Joe Biden',
+      quote: 'Failure at some point in your life is inevitable, but giving up is unforgivable.'
+    })
+  })
+})
+ ```
+ Remember middleware? We need to use that again so that our server can accept the JSON data. We add the bodyParser's JSON middleware. 
+ ```
+ app.use(bodyParser.json())
+ ```
+We also want the feature where we can change our to-do items to inspirational quotes if we're feeling stressed. To be able to do that, we need to operate on our MongoDB collection. The operators we use will be $set, $inc, and $push. Currently, we are changing from task to quote, so we will use the $set.  
+
+```
+app.put('/todos', (req, res) => {
+      todoCollection.findOneAndUpdate(
+        {
+          $set: {
+            task: req.body.task,
+            quote: req.body.quote
+          }
+        },
+        {
+          upsert: true
+        }
+      )
+        .then(result => res.json('Success'))
+        .catch(error => console.error(error))
+    })
+```
+We also need to use another THEN object to get a server response. Let's go to main.js and in our update function, add this:
+```
+ .then(res => {
+      if (res.ok) return res.json()
+    })
+    .then(response => {
+      window.location.reload(true)
+    })
+```
+To now look like this:
+```
+update.addEventListener('click', _ => {
+  fetch('/todos', {
+    method: 'put',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      name: 'Joe Biden',
+      quote: 'Failure at some point in your life is inevitable, but giving up is unforgivable.'
+    })
+  })
+    .then(res => {
+      if (res.ok) return res.json()
+    })
+    .then(response => {
+      window.location.reload(true)
+    })
+})
+
+```
+Almost there! It's time for delete!
+## Delete
+Maybe we want to get rid of a quote, so we have no distractions. 
+```
+<section data-position="delete-quote">
+      <div>
+        <h2>Remove a Quote</h2>
+        <p>
+          
+        </p>
+        <button id="delete-button">Delete a quote</button>
+      </div>
+      <div id="message"></div>
+    </section>
+```
+And of course, we need to call a MongoDB command in server.js for this process to actually work. 
+```
+app.delete('/todos', (req, res) => {
+  todoCollection.deleteOne(/* ... */)
+    .then(result => {
+      if (result.deletedCount === 0) {
+        return res.json('No quote to delete')
+      }
+      res.json(`Deleted a quote`)
+    })
+    .catch(error => console.error(error))
+})
+```
+Remember how we had an event listener for update? We need to do the same thing for delete in main.js
+```
+deleteButton.addEventListener('click', _ => {
+  fetch('/todos', {
+    method: 'delete',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+    })
+  })
+    .then(res => {
+      if (res.ok) return res.json()
+    })
+    .then(response => {
+      if (response === 'No quote to delete') {
+        messageDiv.textContent = 'Nothing to delete'
+      } else {
+        window.location.reload(true)
+      }
+    })
+    .catch(console.error)
+})
+```
+And now we're done! You can play around with the different MongoDB calls an experiment, or even with the CSS! 
